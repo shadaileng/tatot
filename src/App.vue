@@ -2,7 +2,7 @@
 import { onLaunch, onShow } from '@dcloudio/uni-app'
 import { useTarotStore } from '@/store'
 
-onLaunch(() => {
+onLaunch(() => { 
   const store = useTarotStore()
   store.loadRecords()
   console.log('🃏 塔罗牌小程序启动')
