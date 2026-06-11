@@ -416,8 +416,8 @@ onShareTimeline(() => {
 
         <!-- AI 个性化解读 -->
         <view v-if="reading.interpretation" class="ai-reading">
-          <view class="ai-badge" :class="{ 'ai-badge-local': !reading.isAIInterpretation }">
-            <text>{{ reading.isAIInterpretation ? '🤖 AI 个性化解读' : '📖 智能解读' }}</text>
+          <view class="ai-badge" :class="{ 'ai-badge-local': !reading.isAIInterpretation, 'ai-badge-partial': reading.isPartialAIInterpretation }">
+            <text>{{ reading.isAIInterpretation ? (reading.isPartialAIInterpretation ? '🤖 AI 解读（综合部分本地补充）' : '🤖 AI 个性化解读') : '📖 智能解读' }}</text>
           </view>
           <view class="ai-reading-content">
             <text class="ai-reading-text">{{ reading.interpretation }}</text>
@@ -973,6 +973,10 @@ onShareTimeline(() => {
 
   &.ai-badge-local {
     background: linear-gradient(135deg, $accent-gold, #d97706);
+  }
+
+  &.ai-badge-partial {
+    background: linear-gradient(135deg, #6366f1, #d97706);
   }
 }
 

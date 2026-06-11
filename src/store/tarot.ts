@@ -31,6 +31,8 @@ export const useTarotStore = defineStore('tarot', () => {
     interpretation: string
     /** 是否为 AI 生成（false 表示本地降级） */
     isAIInterpretation: boolean
+    /** AI 解读格式不完整，综合解读由本地补偿 */
+    isPartialAIInterpretation: boolean
   } | null>(null)
 
   const records = ref<ReadingRecord[]>([])
@@ -87,6 +89,7 @@ export const useTarotStore = defineStore('tarot', () => {
       if (currentReading.value) {
         currentReading.value.interpretation = result.reading
         currentReading.value.isAIInterpretation = result.isAI
+        currentReading.value.isPartialAIInterpretation = result.isPartialAI
       }
     } catch (e) {
       console.error('获取 AI 解读失败:', e)
