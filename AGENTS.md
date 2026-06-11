@@ -99,6 +99,7 @@ pnpm deploy:cf             # 构建 + 部署 H5 到 Cloudflare Pages（需先 np
 |------|------|------|
 | `VITE_API_URL` | AI 解读后台地址 | 构建时注入 `import.meta.env.VITE_API_URL`，值在 `.env` 中配置 |
 | `TAROT_APPID` | 微信小程序 AppID | 构建时由 `injectAppidPlugin` 自动写入 `project.config.json`，值在 `.env` 中配置 |
+| `TAROT_URL_CHECK` | 域名白名单校验开关 | 构建时由 `injectAppidPlugin` 写入 `project.config.json`，开发环境 `false`，生产环境 `true` |
 
 > 如需为不同环境设置不同值，可创建 `.env.development` 或 `.env.production` 覆盖。
 

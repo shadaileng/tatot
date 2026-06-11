@@ -12,19 +12,28 @@ function injectAppidPlugin(): Plugin {
       const appid = env.TAROT_APPID
       if (!appid) return
 
-      const dirs = ['dist/dev/mp-weixin', 'dist/build/mp-weixin']
-      for (const dir of dirs) {
-        const configPath = path.resolve(__dirname, dir, 'project.config.json')
-        try {
-          if (fs.existsSync(configPath)) {
-            const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-            if (config.appid !== appid) {
-              config.appid = appid
-              fs.writeFileSync(configPath, JSON.stringify(config, null, 2))
-            }
+      const urlCheck = env.TAROT_URL_CHECK === undefined ? false : env.TAROT_URL_CHECK === 'true'
+      const mode = process.env.NODE_ENV || 'development'
+      const dir = mode === 'production' ? 'dist/build/mp-weixin' : 'dist/dev/mp-weixin'
+      const configPath = path.resolve(__dirname, dir, 'project.config.json')
+      try {
+        if (fs.existsSync(configPath)) {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+          let changed = false
+          if (config.appid !== appid) {
+            config.appid = appid
+            changed = true
           }
-        } catch {}
-      }
+          if (!config.setting) config.setting = {}
+          if (config.setting.urlCheck !== urlCheck) {
+            config.setting.urlCheck = urlCheck
+            changed = true
+          }
+          if (changed) {
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 2))
+          }
+        }
+      } catch {}
     },
   }
 }

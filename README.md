@@ -58,6 +58,7 @@ pnpm build:h5
 |------|------|------|
 | `VITE_API_URL` | AI 解读后台 API 地址（Vite 注入到 `import.meta.env`） | `https://tarot-reading-api.xxx.workers.dev` |
 | `TAROT_APPID` | 微信小程序 AppID（构建时自动写入 `project.config.json`） | `wx8011fd667bbb95dc` |
+| `TAROT_URL_CHECK` | 是否校验域名白名单（构建时写入 `project.config.json`） | `false`（开发） / `true`（生产） |
 
 如需为生产环境设置不同的值，创建 `.env.production` 覆盖即可。
 
