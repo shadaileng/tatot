@@ -90,12 +90,17 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
-/** 生成海报 HTML */
+/** 按宽度估算中文字符换行（每行约 28 个 22px 字体） */
+function estimateLines(text: string, charsPerLine: number = 28): number {
+  return Math.ceil(text.length / charsPerLine)
+}
+
+/** 生成海报 HTML — 使用正常文档流 flex 布局，避免 absolute 定位导致的压缩问题 */
 function buildPosterHTML(data: PosterData, cards: PosterCard[]): string {
   const summaryText = extractSummary(data.interpretation || '')
   const cardCount = cards.length
 
-  // 动态网格
+  // 动态网格参数
   const cols = Math.min(cardCount, 3)
   const cardGap = 16
   const rowGap = 24
@@ -104,16 +109,7 @@ function buildPosterHTML(data: PosterData, cards: PosterCard[]): string {
   const cardW = Math.min(300, Math.max(180, (availableW - (cols - 1) * cardGap) / cols))
   const cardH = Math.max(160, cardW * 1.45)
 
-  // 问题区高度
-  const questionLines = data.question ? Math.ceil(data.question.length / 30) : 0
-  const questionH = questionLines > 0 ? questionLines * 30 + 40 : 0
-
-  // 综合解读
-  const summaryH = summaryText ? Math.min(summaryText.length, 800) / 20 * 36 + 120 : 0
-  const rows = Math.ceil(cardCount / cols)
-  const totalW = cols * cardW + (cols - 1) * cardGap
-
-  // 卡片 HTML
+  // 卡片 HTML — 使用 flex 文档流，不用 absolute
   let cardsHtml = ''
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i]
@@ -130,37 +126,38 @@ function buildPosterHTML(data: PosterData, cards: PosterCard[]): string {
         background:${style.gradient};
         border:2px solid ${style.border};
         border-radius:12px;
-        position:absolute;
-        left:${(POSTER_W - totalW) / 2 + (i % cols) * (cardW + cardGap)}px;
-        top:${320 + questionH + Math.floor(i / cols) * (cardH + rowGap)}px;
         overflow:hidden;
         box-sizing:border-box;
+        display:flex;
+        flex-direction:column;
+        flex-shrink:0;
       ">
-        <!-- 占位符 -->
+        <!-- 占位符区域 -->
         <div style="
           background:rgba(0,0,0,0.15); border-radius:8px;
-          position:absolute; left:15%; top:${cardH * 0.3 - 20}px;
-          width:70%; height:${cardH * 0.35 + 40}px;
+          margin:12px 15% 0;
+          flex:1;
           display:flex; flex-direction:column;
           align-items:center; justify-content:center;
+          min-height:0;
         ">
-          <div style="font-size:${Math.floor(cardW * 0.18)}px; color:rgba(201,169,110,0.7); font-weight:bold; font-family:Georgia,serif;">
+          <div style="font-size:${Math.floor(cardW * 0.18)}px; color:rgba(201,169,110,0.7); font-weight:bold; font-family:Georgia,serif; line-height:1;">
             ${escapeHtml(numDisplay)}
           </div>
-          <div style="font-size:${Math.floor(cardW * 0.16)}px; color:rgba(201,169,110,0.4); margin-top:4px;">
+          <div style="font-size:${Math.floor(cardW * 0.16)}px; color:rgba(201,169,110,0.4); margin-top:4px; line-height:1;">
             ${style.symbol}
           </div>
-          ${isReversed ? `<div style="font-size:${Math.floor(cardW * 0.13)}px; color:rgba(220,100,80,0.8); margin-top:4px; font-weight:bold;">▼ 逆位</div>` : ''}
+          ${isReversed ? `<div style="font-size:${Math.floor(cardW * 0.13)}px; color:rgba(220,100,80,0.8); margin-top:4px; font-weight:bold; line-height:1;">▼ 逆位</div>` : ''}
         </div>
         <!-- 底部信息 -->
         <div style="
-          position:absolute; bottom:0; left:0; right:0;
           padding:12px 16px;
           background:rgba(0,0,0,0.3);
+          flex-shrink:0;
         ">
-          <div style="font-size:18px; color:#c9a96e; font-weight:bold;">${escapeHtml(card.position)}</div>
-          <div style="font-size:24px; color:#e8d5b7; font-weight:bold; margin-top:4px;">${escapeHtml(card.name)}</div>
-          <div style="font-size:16px; color:#c9a96e; margin-top:2px;">${escapeHtml(card.keywords.slice(0, 2).join(' · '))}</div>
+          <div style="font-size:18px; color:#c9a96e; font-weight:bold; line-height:1.3;">${escapeHtml(card.position)}</div>
+          <div style="font-size:24px; color:#e8d5b7; font-weight:bold; margin-top:4px; line-height:1.3;">${escapeHtml(card.name)}</div>
+          <div style="font-size:16px; color:#c9a96e; margin-top:2px; line-height:1.3;">${escapeHtml(card.keywords.slice(0, 2).join(' · '))}</div>
           <div style="font-size:20px; color:#a89b8c; margin-top:4px; line-height:1.4;">${escapeHtml(meaning)}</div>
         </div>
       </div>
@@ -171,16 +168,15 @@ function buildPosterHTML(data: PosterData, cards: PosterCard[]): string {
   const summaryHtml = summaryText
     ? `
     <div style="
-      position:absolute;
-      left:50px; top:${320 + questionH + rows * (cardH + rowGap) - rowGap + 40}px;
-      width:${POSTER_W - 100}px;
+      width:100%;
       background:${COLORS.summaryBg};
       border-radius:8px;
       padding:32px;
       border-left:4px solid ${COLORS.gold};
       box-sizing:border-box;
+      margin-top:40px;
     ">
-      <div style="font-size:26px; color:#c9a96e; font-weight:bold; margin-bottom:16px;">✨ 综合解读</div>
+      <div style="font-size:26px; color:#c9a96e; font-weight:bold; margin-bottom:16px; line-height:1.3;">✨ 综合解读</div>
       <div style="font-size:22px; color:#c4b8a8; line-height:2; word-break:break-all;">
         ${escapeHtml(summaryText.slice(0, 800))}${summaryText.length > 800 ? '...' : ''}
       </div>
@@ -188,63 +184,72 @@ function buildPosterHTML(data: PosterData, cards: PosterCard[]): string {
     `
     : ''
 
-  const footerTop = 320 + questionH + rows * (cardH + rowGap) - rowGap + 40 + summaryH + 20
-  const posterH = footerTop + 120
-
   return `
   <div id="poster-html-container" style="
-    position:fixed; left:-9999px; top:0;
-    width:${POSTER_W}px; height:${posterH}px;
+    width:${POSTER_W}px;
     background:${COLORS.bg};
     font-family:sans-serif;
-    overflow:hidden;
     box-sizing:border-box;
+    padding:80px 60px 40px;
+    color:#fff;
   ">
     <!-- 顶部装饰线 -->
     <div style="
-      position:absolute; left:60px; top:80px;
-      width:${POSTER_W - 120}px; height:2px;
+      width:100%; height:2px;
       background:${COLORS.gold};
+      margin-bottom:28px;
     "></div>
     <!-- 标题 -->
     <div style="
-      position:absolute; left:0; right:0; top:110px;
       text-align:center;
       font-size:44px; font-weight:bold; color:${COLORS.gold};
+      line-height:1.3;
+      margin-bottom:8px;
     ">🔮 塔罗牌占卜</div>
     <!-- 牌阵名称 -->
     <div style="
-      position:absolute; left:0; right:0; top:180px;
       text-align:center;
       font-size:28px; color:${COLORS.textSecondary};
+      line-height:1.3;
+      margin-bottom:16px;
     ">${escapeHtml(data.spreadName)}</div>
     <!-- 问题 -->
     ${data.question ? `
     <div style="
-      position:absolute; left:60px; right:60px; top:240px;
       text-align:center;
       font-size:24px; color:${COLORS.textMuted}; line-height:1.5;
       word-break:break-all;
+      margin-bottom:24px;
     ">${escapeHtml(data.question)}</div>` : ''}
-    <!-- 卡片 -->
-    ${cardsHtml}
+    <!-- 卡片网格 -->
+    <div style="
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:${rowGap}px ${cardGap}px;
+      margin-top:8px;
+    ">
+      ${cardsHtml}
+    </div>
     <!-- 综合解读 -->
     ${summaryHtml}
     <!-- 底部装饰 -->
     <div style="
-      position:absolute; left:60px; top:${footerTop}px;
-      width:${POSTER_W - 120}px; height:2px;
+      width:100%; height:2px;
       background:${COLORS.gold};
+      margin-top:40px;
+      margin-bottom:20px;
     "></div>
     <div style="
-      position:absolute; left:0; right:0; top:${footerTop + 40}px;
       text-align:center;
       font-size:22px; color:${COLORS.textMuted};
+      line-height:1.5;
     ">命运之轮 · 塔罗占卜</div>
     <div style="
-      position:absolute; left:0; right:0; top:${footerTop + 70}px;
       text-align:center;
       font-size:22px; color:${COLORS.textMuted};
+      line-height:1.5;
+      margin-top:4px;
     ">${escapeHtml(data.date)}</div>
   </div>
   `
@@ -267,22 +272,42 @@ export async function generateH5Poster(data: PosterData): Promise<PosterResult> 
 
   const html = buildPosterHTML(data, cards)
 
-  // 创建临时容器
-  const container = document.createElement('div')
-  container.innerHTML = html
-  document.body.appendChild(container)
+  // 创建临时容器 — 放在可视区域内但透明，确保 html2canvas 能正确计算布局
+  const wrapper = document.createElement('div')
+  wrapper.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -9999;
+    opacity: 0.001;
+    pointer-events: none;
+    overflow: auto;
+  `
+  wrapper.innerHTML = html
+  document.body.appendChild(wrapper)
 
   try {
-    const element = container.querySelector('#poster-html-container') as HTMLElement
+    const element = wrapper.querySelector('#poster-html-container') as HTMLElement
     if (!element) {
       throw new Error('Failed to create poster element')
     }
+
+    // 等待字体和布局稳定
+    await new Promise(resolve => setTimeout(resolve, 300))
 
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: null,
+      logging: false,
+      // 显式传入宽高，确保截图区域覆盖整个元素
+      x: 0,
+      y: 0,
+      width: element.scrollWidth,
+      height: element.scrollHeight,
     })
 
     const url = canvas.toDataURL('image/png', 0.95)
@@ -294,6 +319,6 @@ export async function generateH5Poster(data: PosterData): Promise<PosterResult> 
     }
   } finally {
     // 清理临时 DOM
-    document.body.removeChild(container)
+    document.body.removeChild(wrapper)
   }
 }
