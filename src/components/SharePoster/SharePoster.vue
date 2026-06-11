@@ -540,7 +540,8 @@ function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: numb
   max-height: 90vh;
   background: $bg-secondary;
   border-radius: $radius-lg;
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
 }
@@ -600,7 +601,7 @@ function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: numb
 // 海报图片
 .poster-image {
   width: 100%;
-  max-height: 60vh;
+  height: auto;
   border-radius: 0;
 }
 
