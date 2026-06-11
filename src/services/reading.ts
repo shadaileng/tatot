@@ -126,25 +126,49 @@ function generateSummary(question: string, cards: DrawnCard[], category: string)
 }
 
 /**
- * 检测后台服务是否可用
- * 通过发送一个轻量的 HEAD 请求到 API 根路径来判断
+ * 后端分层健康状态
  */
-export async function checkBackendHealth(): Promise<boolean> {
-  if (!API_URL) return false
+export interface BackendStatus {
+  /** 整体状态: ok | degraded | error */
+  status: 'checking' | 'ok' | 'degraded' | 'error'
+  /** Worker 是否可用 */
+  worker: 'up' | 'down'
+  /** Gemini 是否可用 */
+  gemini: 'up' | 'down' | 'unconfigured' | 'unknown'
+}
+
+/**
+ * 检测后台服务分层健康状态
+ * 请求 GET /health 端点，返回 worker 和 gemini 各自的可用性
+ */
+export async function checkBackendHealth(): Promise<BackendStatus> {
+  if (!API_URL) {
+    return { status: 'error', worker: 'down', gemini: 'unknown' }
+  }
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5秒超时
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-    const res = await fetch(API_URL, {
-      method: 'HEAD', // 使用 HEAD 减少响应体开销
+    const res = await fetch(`${API_URL}/health`, {
+      method: 'GET',
       signal: controller.signal,
     })
 
     clearTimeout(timeoutId)
-    return res.ok
+
+    if (!res.ok) {
+      return { status: 'error', worker: 'up', gemini: 'unconfigured' }
+    }
+
+    const data = await res.json()
+    return {
+      status: data.status || 'error',
+      worker: data.worker || 'down',
+      gemini: data.gemini || 'unknown',
+    }
   } catch {
-    return false
+    return { status: 'error', worker: 'down', gemini: 'unknown' }
   }
 }
 

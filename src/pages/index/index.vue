@@ -1,18 +1,30 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import type { SpreadType } from '@/types'
 import { spreadList } from '@/data/spreads'
 import { useTarotStore } from '@/store'
 import { navTo } from '@/utils'
-import { checkBackendHealth } from '@/services/reading'
+import { checkBackendHealth, type BackendStatus } from '@/services/reading'
 import TabBar from '@/components/TabBar/TabBar.vue'
 
 const store = useTarotStore()
 const selectedSpread = ref<SpreadType>('single')
 const question = ref('')
 
-// 后台服务状态
-const backendStatus = ref<'checking' | 'online' | 'offline'>('checking')
+// 后台分层健康状态
+const backendStatus = ref<BackendStatus>({ status: 'checking', worker: 'down', gemini: 'unknown' })
+
+// 用于 CSS class 的状态字符串：checking | ok | degraded | error
+const backendClass = computed(() => backendStatus.value.status)
+
+// 状态文字
+const backendText = computed(() => {
+  const s = backendStatus.value
+  if (s.status === 'checking') return '正在检测服务...'
+  if (s.worker === 'up' && s.gemini === 'up') return 'AI 服务已连接'
+  if (s.worker === 'up' && s.gemini !== 'up') return 'AI 服务不可用，将使用本地解读'
+  return '服务不可用，将使用本地解读'
+})
 
 // 星空粒子
 const stars = ref<{ x: number; y: number; size: number; delay: number; duration: number; opacity: number }[]>([])
@@ -27,7 +39,7 @@ onMounted(async () => {
   }))
 
   // 检测后台服务
-  backendStatus.value = await checkBackendHealth() ? 'online' : 'offline'
+  backendStatus.value = await checkBackendHealth()
 })
 
 const spreadIcons: Record<SpreadType, string> = {
@@ -90,11 +102,9 @@ function handleTabChange(path: string) {
     </view>
 
     <!-- 后台服务状态 -->
-    <view class="backend-status" :class="backendStatus">
+    <view class="backend-status" :class="backendClass">
       <view class="status-dot" />
-      <text class="status-text">
-        {{ backendStatus === 'checking' ? '正在检测服务...' : backendStatus === 'online' ? 'AI 服务已连接' : 'AI 服务不可用，将使用本地解读' }}
-      </text>
+      <text class="status-text">{{ backendText }}</text>
     </view>
 
     <!-- 牌阵选择 -->
@@ -243,8 +253,9 @@ function handleTabChange(path: string) {
   position: relative;
 
   &.checking .status-dot { background: #f0ad4e; animation: statusPulse 1s infinite; }
-  &.online .status-dot { background: #5cb85c; }
-  &.offline .status-dot { background: #d9534f; }
+  &.ok .status-dot { background: #5cb85c; }
+  &.degraded .status-dot { background: #f0ad4e; }
+  &.error .status-dot { background: #d9534f; }
 }
 
 .status-dot {
