@@ -7,6 +7,8 @@ const props = defineProps<{
   cards: DrawnCard[]
   question: string
   spreadName: string
+  /** AI 综合解读全文（含各牌解读 + ✨ 综合解读部分） */
+  interpretation?: string
 }>()
 
 const emit = defineEmits<{
@@ -21,7 +23,18 @@ const canvasId = 'share-poster-canvas'
 
 // 海报尺寸
 const posterW = 750
-const posterH = 1334
+const minPosterH = 1334
+
+/** 从 interpretation 中提取「✨ 综合解读」部分 */
+function extractSummary(text: string): string {
+  if (!text) return ''
+  const marker = '✨ 综合解读'
+  const idx = text.indexOf(marker)
+  if (idx === -1) return ''
+  const afterMarker = text.slice(idx + marker.length)
+  // 去掉开头的换行/冒号等
+  return afterMarker.replace(/^[：:\s\n]+/, '').trim()
+}
 
 /** 生成海报 */
 async function generatePoster() {
@@ -29,6 +42,10 @@ async function generatePoster() {
 
   try {
     const ctx = uni.createCanvasContext(canvasId)
+
+    // 动态海报高度（先预估最大值，背景铺满）
+    const estimatedPosterH = minPosterH + 1200 // 给综合解读预留空间
+    const posterH = estimatedPosterH
 
     // 1. 背景
     ctx.fillStyle = '#0f0f23'
@@ -63,8 +80,6 @@ async function generatePoster() {
 
     // 6. 牌阵解读卡片区域（动态尺寸，确保不溢出画布）
     const cardAreaY = props.question ? 320 + 40 : 280
-    const footerReservedH = 120 // 底部装饰+文字预留高度
-    const availableH = posterH - cardAreaY - footerReservedH
     const maxCardW = 300
     const minCardW = 180
     const cardGap = 16
@@ -84,10 +99,8 @@ async function generatePoster() {
 
     const rows = Math.ceil(props.cards.length / cols)
 
-    // 根据可用高度动态计算卡片高度，确保不溢出
+    // 动态计算卡片高度
     let cardH = cardW * 1.45
-    const maxCardH = (availableH - (rows - 1) * rowGap) / rows
-    cardH = Math.min(cardH, maxCardH)
     cardH = Math.max(160, cardH) // 最小高度160
 
     const totalW = cols * cardW + (cols - 1) * cardGap
@@ -168,8 +181,61 @@ async function generatePoster() {
       })
     }
 
-    // 7. 底部装饰
-    const footerY = cardAreaY + rows * (cardH + rowGap) - rowGap + 40
+    // 7. 综合解读区域（在牌阵卡片下方）
+    const summaryText = extractSummary(props.interpretation || '')
+    let summaryH = 0
+    if (summaryText) {
+      const summaryPadding = 32
+      const summaryTitleH = 40
+      const summaryLineH = 36
+      const summaryCardW = posterW - 100
+      const summaryMaxW = summaryCardW - 48 // 卡片内边距
+      const summaryLines = wrapText(ctx, summaryText, summaryMaxW, 22)
+      // 限制最多 20 行
+      const displayLines = summaryLines.slice(0, 20)
+      summaryH = summaryTitleH + 16 + displayLines.length * summaryLineH + summaryPadding * 2
+
+      const summaryX = 50
+      const summaryY = cardAreaY + rows * (cardH + rowGap) - rowGap + 40
+
+      // 综合解读卡片背景
+      ctx.fillStyle = '#1a1a3e'
+      roundRect(ctx, summaryX, summaryY, summaryCardW, summaryH, 8)
+      ctx.fill()
+
+      // 金色左边框
+      ctx.fillStyle = '#c9a96e'
+      ctx.fillRect(summaryX, summaryY + 8, 4, summaryH - 16)
+
+      // 标题：✨ 综合解读
+      ctx.fillStyle = '#c9a96e'
+      ctx.font = 'bold 26px sans-serif'
+      ctx.textAlign = 'left'
+      ctx.fillText('✨ 综合解读', summaryX + summaryPadding, summaryY + summaryPadding + 30)
+
+      // 正文
+      ctx.fillStyle = '#c4b8a8'
+      ctx.font = '22px sans-serif'
+      displayLines.forEach((line, li) => {
+        ctx.fillText(
+          line,
+          summaryX + summaryPadding,
+          summaryY + summaryPadding + summaryTitleH + 16 + li * summaryLineH + 22,
+        )
+      })
+
+      // 如果行数超出限制，显示省略号
+      if (summaryLines.length > 20) {
+        ctx.fillStyle = '#6b5e53'
+        ctx.font = '20px sans-serif'
+        ctx.textAlign = 'right'
+        ctx.fillText('... 更多解读请查看App', summaryX + summaryCardW - summaryPadding, summaryY + summaryH - 20)
+      }
+    }
+
+    // 8. 底部装饰
+    const cardsBottomY = cardAreaY + rows * (cardH + rowGap) - rowGap + 40
+    const footerY = summaryH > 0 ? cardsBottomY + summaryH + 20 : cardsBottomY
     ctx.fillStyle = '#c9a96e'
     ctx.fillRect(60, footerY, posterW - 120, 2)
 
@@ -180,14 +246,17 @@ async function generatePoster() {
     ctx.fillText('命运之轮 · 塔罗占卜', posterW / 2, footerY + 50)
     ctx.fillText(new Date().toLocaleDateString('zh-CN'), posterW / 2, footerY + 80)
 
-    // 9. 绘制完成
+    // 9. 实际海报高度
+    const actualPosterH = footerY + 120
+
+    // 10. 绘制完成
     ctx.draw(false, () => {
       // 导出图片
       setTimeout(() => {
         uni.canvasToTempFilePath({
           canvasId,
           width: posterW,
-          height: Math.min(footerY + 120, posterH),
+          height: actualPosterH,
           quality: 0.9,
           success: (res) => {
             posterUrl.value = res.tempFilePath
@@ -344,7 +413,7 @@ function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: numb
         :id="canvasId"
         canvas-id="share-poster-canvas"
         class="poster-canvas"
-        :style="{ width: `${posterW}px`, height: `${posterH}px` }"
+        :style="{ width: `${posterW}px`, height: `${minPosterH + 1200}px` }"
       />
 
       <!-- 操作按钮 -->

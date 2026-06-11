@@ -497,6 +497,7 @@ onShareTimeline(() => {
       :cards="reading.cards"
       :question="reading.question"
       :spread-name="store.records[0]?.spreadName ?? ''"
+      :interpretation="reading.interpretation"
       @close="posterVisible = false"
     />
   </view>
