@@ -189,7 +189,6 @@ watch(
 .poster-modal {
   width: 100%;
   max-width: 600rpx;
-  max-height: 90vh;
   background: $bg-secondary;
   border-radius: $radius-lg;
   overflow-y: auto;

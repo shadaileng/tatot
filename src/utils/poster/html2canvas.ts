@@ -177,8 +177,8 @@ function buildPosterHTML(data: PosterData, cards: PosterCard[]): string {
       margin-top:40px;
     ">
       <div style="font-size:26px; color:#c9a96e; font-weight:bold; margin-bottom:16px; line-height:1.3;">✨ 综合解读</div>
-      <div style="font-size:22px; color:#c4b8a8; line-height:2; word-break:break-all;">
-        ${escapeHtml(summaryText.slice(0, 800))}${summaryText.length > 800 ? '...' : ''}
+      <div style="font-size:22px; color:#c4b8a8; line-height:44px; word-break:break-word;">
+        ${escapeHtml(summaryText)}
       </div>
     </div>
     `
