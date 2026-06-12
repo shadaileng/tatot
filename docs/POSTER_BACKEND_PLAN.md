@@ -92,17 +92,17 @@
 cd tarot-poster-service
 
 # 安装依赖
-npm install
+pnpm install
 
 # 复制环境变量
 cp .env.example .env
 # 编辑 .env，可选配置 API_KEY
 
 # 开发模式（热重载）
-npm run dev
+pnpm run dev
 
 # 生产模式
-npm run build && npm start
+pnpm run build && pnpm start
 ```
 
 服务默认监听 `http://localhost:3000`，端口可通过 `PORT` 环境变量修改。
@@ -147,7 +147,8 @@ docker-compose up -d
 
 ```
 tarot-poster-service/
-├── package.json                # 项目配置
+├── package.json                # 项目配置（含 packageManager: pnpm@x.x.x）
+├── pnpm-lock.yaml              # pnpm 锁定文件
 ├── tsconfig.json               # TypeScript 配置
 ├── .env.example                # 环境变量示例
 ├── .gitignore                  # Git 忽略文件
@@ -827,13 +828,16 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
 COPY src/ ./src/
-RUN npm run build
+RUN pnpm run build
 
 # ========== 运行阶段 ==========
 FROM node:20-slim
+
+# 安装 pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # 安装 Chromium + 中文字体
 RUN apt-get update && apt-get install -y \
@@ -849,10 +853,13 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 WORKDIR /app
 
+# 复制 pnpm-lock.yaml + package.json 安装生产依赖
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/package.json ./
+RUN pnpm install --prod --frozen-lockfile
+
 # 复制构建产物
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY package.json ./
 
 EXPOSE 3000
 
@@ -870,6 +877,9 @@ CMD ["node", "dist/index.js"]
 
 FROM node:20-slim
 
+# 安装 pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # 安装 Chromium + 中文字体
 RUN apt-get update && apt-get install -y \
   chromium \
@@ -884,12 +894,12 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+COPY pnpm-lock.yaml package.json ./
+RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json ./
 COPY src/ ./src/
-RUN npm run build
+RUN pnpm run build
 
 # HF Spaces 默认端口
 ENV PORT=7860
@@ -1081,8 +1091,8 @@ VITE_POSTER_API=https://your-poster-service.com
 
 ```bash
 cd tarot-poster-service
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 
 # 测试 API
 curl -X POST http://localhost:3000/poster \
