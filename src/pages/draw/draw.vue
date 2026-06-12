@@ -9,6 +9,7 @@ import TabBar from '@/components/TabBar/TabBar.vue'
 const store = useTarotStore()
 const selectedSpread = ref<SpreadType>('single')
 const question = ref('')
+const useAI = ref(true)
 
 const currentSpread = computed(() => getSpread(selectedSpread.value))
 
@@ -36,7 +37,7 @@ function handleDraw() {
   // #endif
 
   // 1. 先抽牌（数据层面）
-  store.drawCards(selectedSpread.value, question.value)
+  store.drawCards(selectedSpread.value, question.value, useAI.value)
 
   // 2. 启动洗牌动画
   animPhase.value = 'shuffle'
@@ -168,7 +169,18 @@ function handleTabChange(path: string) {
 
       <!-- 问题 -->
       <view class="question-wrap">
-        <text class="section-title">默想你的问题</text>
+        <view class="section-title-row">
+          <text class="section-title">默想你的问题</text>
+          <view class="ai-toggle">
+            <text class="ai-toggle-label">AI 解读</text>
+            <switch
+              :checked="useAI"
+              color="#c9a96e"
+              style="transform: scale(0.7);"
+              @change="useAI = $event.detail.value"
+            />
+          </view>
+        </view>
         <textarea
           v-model="question"
           class="question-textarea"
@@ -219,8 +231,29 @@ function handleTabChange(path: string) {
 .section-title {
   font-size: 30rpx;
   color: $text-secondary;
-  margin-bottom: 20rpx;
   display: block;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.section-title-row .section-title {
+  margin-bottom: 0;
+}
+
+.ai-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.ai-toggle-label {
+  font-size: 22rpx;
+  color: $accent-gold;
 }
 
 .spread-grid {

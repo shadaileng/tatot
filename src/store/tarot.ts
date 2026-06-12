@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { TarotCard, DrawnCard, SpreadType, ReadingRecord, CardOrientation } from '@/types'
 import { drawRandomCards } from '@/data/tarot-cards'
 import { getSpread } from '@/data/spreads'
-import { fetchAIReading } from '@/services/reading'
+import { fetchAIReading, generateLocalReading } from '@/services/reading'
 
 /** 生成唯一 ID */
 function generateId(): string {
@@ -27,6 +27,8 @@ export const useTarotStore = defineStore('tarot', () => {
     cards: DrawnCard[]
     spreadType: SpreadType
     question: string
+    /** 是否使用 AI 解读 */
+    useAI: boolean
     /** AI 综合解读文本 */
     interpretation: string
     /** 是否为 AI 生成（false 表示本地降级） */
@@ -46,7 +48,7 @@ export const useTarotStore = defineStore('tarot', () => {
   // ========== Actions ==========
 
   /** 执行抽牌 */
-  function drawCards(spreadType: SpreadType, question = '') {
+  function drawCards(spreadType: SpreadType, question = '', useAI = true) {
     const spread = getSpread(spreadType)
     const drawn = drawRandomCards(spread.positions.length)
 
@@ -57,7 +59,7 @@ export const useTarotStore = defineStore('tarot', () => {
     }))
 
     const timestamp = Date.now()
-    currentReading.value = { cards, spreadType, question, interpretation: '', isAIInterpretation: false }
+    currentReading.value = { cards, spreadType, question, useAI, interpretation: '', isAIInterpretation: false, isPartialAIInterpretation: false }
 
     // 保存到记录
     records.value.unshift({
@@ -85,6 +87,17 @@ export const useTarotStore = defineStore('tarot', () => {
 
     isLoadingInterpretation.value = true
     try {
+      // 用户关闭 AI 开关，直接使用本地规则解读
+      if (!currentReading.value.useAI) {
+        const localReading = generateLocalReading(currentReading.value.question, currentReading.value.cards)
+        if (currentReading.value) {
+          currentReading.value.interpretation = localReading
+          currentReading.value.isAIInterpretation = false
+          currentReading.value.isPartialAIInterpretation = false
+        }
+        return
+      }
+
       const result = await fetchAIReading(currentReading.value.question, currentReading.value.cards)
       if (currentReading.value) {
         currentReading.value.interpretation = result.reading

@@ -10,6 +10,7 @@ import TabBar from '@/components/TabBar/TabBar.vue'
 const store = useTarotStore()
 const selectedSpread = ref<SpreadType>('single')
 const question = ref('')
+const useAI = ref(true)
 
 // 后台分层健康状态
 const backendStatus = ref<BackendStatus>({ status: 'checking', worker: 'down', gemini: 'unknown' })
@@ -60,7 +61,7 @@ function handleDraw() {
   // #ifdef MP-WEIXIN
   wx.vibrateShort({ type: 'medium' })
   // #endif
-  store.drawCards(selectedSpread.value, question.value)
+  store.drawCards(selectedSpread.value, question.value, useAI.value)
   navTo('/pages/result/result')
 }
 
@@ -127,7 +128,18 @@ function handleTabChange(path: string) {
 
     <!-- 问题输入 -->
     <view class="question-section">
-      <text class="section-title">你想问什么？（选填）</text>
+      <view class="section-title-row">
+        <text class="section-title">你想问什么？（选填）</text>
+        <view class="ai-toggle">
+          <text class="ai-toggle-label">AI 解读</text>
+          <switch
+            :checked="useAI"
+            color="#c9a96e"
+            style="transform: scale(0.7);"
+            @change="useAI = $event.detail.value"
+          />
+        </view>
+      </view>
       <view class="question-input-wrap">
         <textarea
           v-model="question"
@@ -286,8 +298,29 @@ function handleTabChange(path: string) {
 .section-title {
   font-size: 30rpx;
   color: $text-secondary;
-  margin-bottom: 20rpx;
   display: block;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.section-title-row .section-title {
+  margin-bottom: 0;
+}
+
+.ai-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.ai-toggle-label {
+  font-size: 22rpx;
+  color: $accent-gold;
 }
 
 .spread-list {

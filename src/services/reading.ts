@@ -59,7 +59,7 @@ export async function fetchAIReading(question: string, cards: DrawnCard[]): Prom
 /**
  * 本地降级：基于规则拼接与问题关联的解读
  */
-function generateLocalReading(question: string, cards: DrawnCard[]): string {
+export function generateLocalReading(question: string, cards: DrawnCard[]): string {
   const category = detectCategory(question)
 
   const parts = cards.map((c) => {
